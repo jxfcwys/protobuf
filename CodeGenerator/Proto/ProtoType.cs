@@ -45,7 +45,7 @@ namespace SilentOrbit.ProtocolBuffers
 
         public virtual string FullCsType
         {
-            get { return "global::" + CsNamespace + "." + CsType; }
+            get { return CsNamespace + "." + CsType; }
         }
 
         /// <summary>
@@ -66,43 +66,7 @@ namespace SilentOrbit.ProtocolBuffers
         /// </summary>
         public string Package { get; set; }
 
-        #region Local options
-
         public string OptionNamespace { get; set; }
-
-        /// <summary>
-        /// (C#) access modifier: public(default)/protected/private
-        /// </summary>
-        public string OptionAccess { get; set; }
-
-        /// <summary>
-        /// Call triggers before/after serialization.
-        /// </summary>
-        public bool OptionTriggers { get; set; }
-
-        /// <summary>
-        /// Keep unknown fields when deserializing and send them back when serializing.
-        /// This will generate field to store any unknown keys and their value.
-        /// </summary>
-        public bool OptionPreserveUnknown { get; set; }
-
-        /// <summary>
-        /// Don't create class/struct, only serializing code, useful when serializing types in external DLL
-        /// </summary>
-        public bool OptionExternal { get; set; }
-
-        /// <summary>
-        /// Can be "class", "struct" or "interface"
-        /// </summary>
-        public string OptionType { get; set; }
-
-        /// <summary>
-        /// Initial capacity of allocated MemoryStream when Serializing this object.
-        /// Size in bytes.
-        /// </summary>
-        public int BufferSize { get; set; }
-
-        #endregion
 
         /// <summary>
         /// Used by types within a namespace
@@ -124,11 +88,6 @@ namespace SilentOrbit.ProtocolBuffers
         public ProtoType()
         {
             this.OptionNamespace = null;
-            this.OptionAccess = "public";
-            this.OptionTriggers = false;
-            this.OptionPreserveUnknown = false;
-            this.OptionExternal = false;
-            this.OptionType = null;
         }
 
         public bool Nullable
@@ -141,10 +100,7 @@ namespace SilentOrbit.ProtocolBuffers
                     return true;
                 if (this is ProtoMessage)
                 {
-                    if (OptionType == "class")
-                        return true;
-                    if (OptionType == "interface")
-                        return true;
+                    return true;
                 }
                 return false;
             }

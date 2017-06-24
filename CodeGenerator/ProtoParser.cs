@@ -66,7 +66,7 @@ namespace SilentOrbit.ProtocolBuffers
 
         static void ParseMessages(TokenReader tr, ProtoCollection p)
         {
-            string package = "Example";
+            string package = "GameMsg.ProtoBuf";
 
             while (true)
             {
@@ -263,14 +263,11 @@ namespace SilentOrbit.ProtocolBuffers
         {
             switch (key)
             {
-                case "default":
-                    f.OptionDefault = val;
-                    break;
                 case "packed":
-                    f.OptionPacked = Boolean.Parse(val);
+                    bool packed = Boolean.Parse(val);
                     break;
                 case "deprecated":
-                    f.OptionDeprecated = Boolean.Parse(val);
+                    bool deprecated = Boolean.Parse(val);
                     break;
                 default:
                     Console.WriteLine("Warning: Unknown field option: " + key);

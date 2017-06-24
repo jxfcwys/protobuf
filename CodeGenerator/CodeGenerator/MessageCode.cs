@@ -23,41 +23,17 @@ namespace SilentOrbit.ProtocolBuffers
                 return;
             }
 
-            //Do not generate class code for external classes
-            if (m.OptionExternal)
-            {
-                cw.Comment("Written elsewhere");
-                cw.Comment(m.OptionAccess + " " + m.OptionType + " " + m.CsType + " {}");
-                return;
-            }
-
             //Default class
             cw.Summary(m.Comments);
-            cw.Bracket(m.OptionAccess + " partial " + m.OptionType + " " + m.CsType);
+            cw.Bracket("public partial class " + m.CsType);
 
-            if (options.GenerateDefaultConstructors)
-                GenerateCtorForDefaults(m);
+            GenerateCtor(m);
 
             GenerateEnums(m);
 
             GenerateProperties(m);
 
-            //if(options.GenerateToString...
-            // ...
-
-            if (m.OptionPreserveUnknown)
-            {
-                cw.Summary("Values for unknown fields.");
-                cw.WriteLine("public List<global::SilentOrbit.ProtocolBuffers.KeyValue> PreservedFields;");
-                cw.WriteLine();
-            }
-
-            if (m.OptionTriggers)
-            {
-                cw.Comment("protected virtual void BeforeSerialize() {}");
-                cw.Comment("protected virtual void AfterDeserialize() {}");
-                cw.WriteLine();
-            }
+            GenerateClear(m);
 
             foreach (ProtoMessage sub in m.Messages.Values)
             {
@@ -68,29 +44,30 @@ namespace SilentOrbit.ProtocolBuffers
             return;
         }
 
-        void GenerateCtorForDefaults(ProtoMessage m)
+        void GenerateCtor(ProtoMessage m)
         {
-            // Collect all fields with default values.
-            var fieldsWithDefaults = new List<Field>();
+            // Collect all message fields.
+            var mfields = new List<Field>();
             foreach (Field field in m.Fields.Values)
-            {
-                if (field.OptionDefault != null)
+            {                
+                if (field.Rule == FieldRule.Repeated || field.ProtoType is ProtoMessage)
                 {
-                    fieldsWithDefaults.Add(field);
+                    mfields.Add(field);
                 }
             }
 
-            if (fieldsWithDefaults.Count > 0)
+            cw.Bracket("public " + m.CsType + "()");
+            if (mfields.Count > 0)
             {
-                cw.Bracket("public " + m.CsType + "()");
-                foreach (var field in fieldsWithDefaults)
+                foreach (var field in mfields)
                 {
                     string formattedValue = field.FormatDefaultForTypeAssignment();
                     string line = string.Format("{0} = {1};", field.CsName, formattedValue);
                     cw.WriteLine(line);
                 }
-                cw.EndBracket();
             }
+            cw.EndBracket();
+            cw.WriteLine();
         }
 
         void GenerateEnums(ProtoMessage m)
@@ -109,25 +86,10 @@ namespace SilentOrbit.ProtocolBuffers
                 return;
             }
 
-            if (m.OptionExternal)
-            {
-                cw.Comment("Written elsewhere");
-                cw.Comment(m.Comments);
-                cw.Comment(m.OptionAccess + " enum " + m.CsType);
-                cw.Comment("{");
-                foreach (var epair in m.Enums)
-                {
-                    cw.Summary(epair.Comment);
-                    cw.Comment(cw.IndentPrefix + epair.Name + " = " + epair.Value + ",");
-                }
-                cw.Comment("}");
-                return;
-            }
-
             cw.Summary(m.Comments);
             if (m.OptionFlags)
-                cw.Attribute("global::System.FlagsAttribute");
-            cw.Bracket(m.OptionAccess + " enum " + m.CsType);
+                cw.Attribute("System.FlagsAttribute");
+            cw.Bracket("public enum " + m.CsType);
             foreach (var epair in m.Enums)
             {
                 cw.Summary(epair.Comment);
@@ -150,18 +112,14 @@ namespace SilentOrbit.ProtocolBuffers
                 if (f.Comments != null)
                     cw.Summary(f.Comments);
 
-                if (f.OptionExternal)
-                {
-                    if (f.OptionDeprecated)
-                        cw.WriteLine("// [Obsolete]");
-                    cw.WriteLine("//" + GenerateProperty(f) + " // Implemented by user elsewhere");
-                }
-                else
-                {
-                    if (f.OptionDeprecated)
-                        cw.WriteLine("[Obsolete]");
-                    cw.WriteLine(GenerateProperty(f));
-                }
+                cw.WriteLine(GenerateProperty(f));
+                cw.WriteLine();
+            }
+
+            //Add HasField
+            foreach (Field f in m.Fields.Values)
+            {
+                cw.WriteLine("public bool Has" + f.CsName + " { get; set; }");
                 cw.WriteLine();
             }
 
@@ -178,19 +136,49 @@ namespace SilentOrbit.ProtocolBuffers
         string GenerateProperty(Field f)
         {
             string type = f.ProtoType.FullCsType;
-            if (f.OptionCodeType != null)
-                type = f.OptionCodeType;
             if (f.Rule == FieldRule.Repeated)
                 type = "List<" + type + ">";
-            if (f.Rule == FieldRule.Optional && !f.ProtoType.Nullable && options.Nullable)
-                type = type + "?";
+            return "public " + type + " " + f.CsName + " { get; set; }";
+        }        
 
-            if (f.OptionReadOnly)
-                return f.OptionAccess + " readonly " + type + " " + f.CsName + " = new " + type + "();";
-            else if (f.ProtoType is ProtoMessage && f.ProtoType.OptionType == "struct")
-                return f.OptionAccess + " " + type + " " + f.CsName + ";";
-            else
-                return f.OptionAccess + " " + type + " " + f.CsName + " { get; set; }";
+        void GenerateClear(ProtoMessage m)
+        {
+            cw.Bracket("public void Clear()");
+            foreach (Field f in m.Fields.Values)
+            {
+                if (f.Rule == FieldRule.Repeated || f.ProtoType is ProtoMessage)
+                {
+                    cw.WriteLine(f.CsName + ".Clear();");
+                }
+                else if (f.ProtoType is ProtoEnum)
+                {
+                    cw.WriteLine(f.CsName + " = " + f.ProtoType.FullCsType + "." + (f.ProtoType as ProtoEnum).Enums[0].Name);
+                }
+                else
+                {
+                    switch (f.ProtoType.ProtoName)
+                    {
+                        case ProtoBuiltin.Bool:
+                            cw.WriteLine(f.CsName + " = false;");
+                            break;                    
+                        case ProtoBuiltin.Int32:
+                        case ProtoBuiltin.Int64:
+                        case ProtoBuiltin.UInt32:
+                        case ProtoBuiltin.UInt64:
+                            cw.WriteLine(f.CsName + " = 0;");
+                            break;
+                        case ProtoBuiltin.Float:
+                        case ProtoBuiltin.Double:
+                            cw.WriteLine(f.CsName + " = 0f;");
+                            break;
+                        case ProtoBuiltin.String:
+                            cw.WriteLine(f.CsName + " = string.Empty;");
+                            break;
+                    }
+                }
+            }
+            cw.EndBracket();
+            cw.WriteLine();
         }
     }
 }

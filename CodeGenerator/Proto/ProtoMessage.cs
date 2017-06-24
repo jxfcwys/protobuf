@@ -12,7 +12,7 @@ namespace SilentOrbit.ProtocolBuffers
 
         public string Comments { get; set; }
 
-        public Dictionary<int, Field> Fields = new Dictionary<int, Field>();
+        public Dictionary<int, Field> Fields = new Dictionary<int, Field>();        
         public Dictionary<string, ProtoMessage> Messages = new Dictionary<string, ProtoMessage>();
         public Dictionary<string, ProtoEnum> Enums = new Dictionary<string, ProtoEnum>();
 
@@ -20,10 +20,7 @@ namespace SilentOrbit.ProtocolBuffers
         {
             get
             {
-                if (this.OptionExternal || this.OptionType == "interface")
-                    return CsType + "Serializer";
-                else
-                    return CsType;
+                return CsType;
             }
         }
 
@@ -31,46 +28,18 @@ namespace SilentOrbit.ProtocolBuffers
         {
             get
             {
-                if (this.OptionExternal || this.OptionType == "interface")
-                    return FullCsType + "Serializer";
-                else
-                    return FullCsType;
+                return FullCsType;
             }
         }
 
         public ProtoMessage(ProtoMessage parent, string package)
             : base(parent, package)
         {
-            this.OptionType = "class";
         }
 
         public override string ToString()
         {
             return "message " + FullProtoName;
-        }
-
-        public bool IsUsingBinaryWriter
-        {
-            get
-            {
-                foreach (Field f in Fields.Values)
-                    if (f.IsUsingBinaryWriter)
-                        return true;
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Return the buffer size of the largest field specified in the .proto file.
-        /// </summary>
-        public int MaxFieldBufferSize()
-        {
-            if (BufferSize > 0)
-                return BufferSize;
-            int size = 0;
-            foreach (var f in Fields.Values)
-                size = Math.Max(size, f.BufferSizeScan());
-            return size;
         }
 
         /// <summary>

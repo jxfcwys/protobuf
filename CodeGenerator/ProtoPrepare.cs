@@ -56,14 +56,6 @@ namespace SilentOrbit.ProtocolBuffers
                 PrepareProtoType(m, f);
 
                 DetectNameClash(m, f);
-
-                if (f.OptionDefault != null)
-                {
-                    if (f.ProtoType is ProtoBuiltin && ((ProtoBuiltin)f.ProtoType).ProtoName == "bytes")
-                        throw new NotImplementedException();
-                    if (f.ProtoType is ProtoMessage)
-                        throw new ProtoFormatException("Message can't have a default", f.Source);
-                }
             }
 
         }
@@ -132,12 +124,6 @@ namespace SilentOrbit.ProtocolBuffers
                 f.ProtoType = Search.GetProtoType(m, f.ProtoTypeName);
 #endif
                 throw new ProtoFormatException("Field type \"" + f.ProtoTypeName + "\" not found for field " + f.ProtoName + " in message " + m.FullProtoName, f.Source);
-            }
-
-            if (f.OptionPacked)
-            {
-                if (f.ProtoType.WireType == Wire.LengthDelimited)
-                    throw new ProtoFormatException("Length delimited types cannot be packed", f.Source);
             }
         }
 
